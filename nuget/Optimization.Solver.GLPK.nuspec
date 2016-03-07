@@ -13,7 +13,8 @@
     <projectUrl>https://github.com/larsbeck/Optimization.Solver.GLPKSolver</projectUrl>
     <iconUrl>http://www.optimizationzen.com/optimization.framework.jpg</iconUrl>
     <dependencies>
-      <dependency id="Optimization.Framework" version="0.3.1036.0" />
+      <dependency id="Optimization.Framework" version="0.3.1266.0" />
+      <dependency id="Antlr" version="[3.1.3.42154]" />
     </dependencies>
   </metadata>
   <files>
