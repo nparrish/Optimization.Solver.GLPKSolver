@@ -426,6 +426,11 @@ namespace Optimization.Solver.GLPK
                     var objective = model.Objectives.ElementAt(0);
                     var expression = objective.Expression.Normalize();
 
+	                if (expression.Terms == null)
+	                {
+		                throw new ArgumentException("The objective expression is empty or all coefficients are zero");
+	                }
+
                     // Loop through all expressions and set the variable's coefficient
                     foreach (var term in expression.Terms)
                     {
