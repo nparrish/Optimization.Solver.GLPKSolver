@@ -1,1 +1,1 @@
-"../source/.nuget/NuGet.exe" pack Optimization.Solver.GLPK.nuspec -Version %1
+"../source/.nuget/NuGet.exe" pack Optimization.Solver.GLPK.nuspec -Version %1 -Symbols
