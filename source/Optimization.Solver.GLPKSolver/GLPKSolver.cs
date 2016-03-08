@@ -464,8 +464,14 @@ namespace Optimization.Solver.GLPK
                 foreach (var constraint in model.Constraints)
                 {
                     var expression = constraint.Expression.Normalize();
-                    // Loop through each term
-                    foreach (var term in expression.Terms)
+
+					if (expression.Terms == null)
+					{
+						throw new ArgumentException("The constraint expression is empty or all coefficients are zero: " + constraint.Name);
+					}
+
+					// Loop through each term
+					foreach (var term in expression.Terms)
                     {
                         // Add coefficient (factor) for matrix cell [i,j], i=rowIndex, j=variablesToIdx[term.Variable]
                         ia.Add(rowIndex);
