@@ -75,7 +75,29 @@ namespace Optimization.Solver.GLPK
             //public double[] foo_bar;     /* (reserved) */
         }
 
-        private enum GLP_SOLUTIONSTATUS
+
+	    public unsafe struct glp_smcp
+	    {
+			/* simplex method control parameters */
+			public int msg_lev; /* message level: */
+			public int meth; /* simplex method option: */
+			public int pricing; /* pricing technique: */
+			public int r_test; /* ratio test technique: */
+			public double tol_bnd; /* spx.tol_bnd */
+			public double tol_dj; /* spx.tol_dj */
+			public double tol_piv; /* spx.tol_piv */
+			public double obj_ll; /* spx.obj_ll */
+			public double obj_ul; /* spx.obj_ul */
+		    public int it_lim; /* spx.it_lim */
+			public int tm_lim; /* spx.tm_lim (milliseconds) */
+			public int out_frq; /* spx.out_frq */
+			public int out_dly; /* spx.out_dly (milliseconds) */
+			public int presolve; /* enable/disable using LP presolver */
+			public fixed double foo_bar [36]; /* (reserved) */
+	    }
+
+
+	    private enum GLP_SOLUTIONSTATUS
         {
             GLP_UNDEF = 1,  /* solution is undefined */
             GLP_FEAS = 2,  /* solution is feasible */
@@ -113,11 +135,21 @@ namespace Optimization.Solver.GLPK
             GLP_BV = 3  /* binary variable */
         }
 
-        #endregion
 
-        #region GLPK DLL Imports
+	    private enum GLP_SCALING_OPTIONS
+	    {
+		    GLP_SF_GM = 0x01, /* perform geometric mean scaling */
+		    GLP_SF_EQ = 0x10, /* perform equilibration scaling */
+		    GLP_SF_2N = 0x20, /* round scale factors to power of two */
+		    GLP_SF_SKIP = 0x40, /* skip if problem is well scaled */
+		    GLP_SF_AUTO = 0x80 /* choose scaling options automatically */
+	    }
 
-        [DllImport(glpkLib, SetLastError = true)]
+	    #endregion
+
+		#region GLPK DLL Imports
+
+		[DllImport(glpkLib, SetLastError = true)]
         unsafe static extern double* glp_create_prob();
 
         [DllImport(glpkLib, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
@@ -200,13 +232,25 @@ namespace Optimization.Solver.GLPK
 
         [DllImport(glpkLib, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         unsafe static extern void glp_set_col_name(double* lp, int j, string name);
-        #endregion
 
-        // Reference to the Optimization.Framework model
-        private Model _model;
+		[DllImport(glpkLib, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+		unsafe static extern void glp_scale_prob(double* lp, int flags);
+
+		[DllImport(glpkLib, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+		unsafe static extern void glp_unscale_prob(double* lp);
+
+		[DllImport(glpkLib, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+		unsafe static extern void glp_init_smcp(glp_smcp* opts);
+		#endregion
+
+		// Reference to the Optimization.Framework model
+		private Model _model;
 
         // Pointer to the GLPK internal model
         private double* _glpk_model;
+
+		// Maximum number of Simplex iterations
+	    private int? _max_iterations;
 
         // Array of row indices
         private ArrayList ia = new ArrayList();
@@ -672,29 +716,45 @@ namespace Optimization.Solver.GLPK
 
                 // Hier Zeiger auf Konfigurationsstruktur GLP_SMCP übergeben um
                 int res = -1;
-                if (this.IsMixedIntegerModel)
-                {
-                    // Calculate initial basis
-                    res = glp_simplex(lp, null);
-                    if (res == 0)
-                    {
-                        //fixed (void* iocc = &this.IOCP)
-                        {
-                            //res = glp_intopt(lp, iocc);
-                            res = glp_intopt(lp, null);
-                        }
-                        if (res == 0)
-                            return true;
-                        else
-                            return false;
-                    }
-                    else
-                        return false;
-                }
-                else
-                    res = glp_simplex(lp, null);
+	            if (this.IsMixedIntegerModel)
+	            {
+		            // Calculate initial basis
+		            res = glp_simplex(lp, null);
+		            if (res == 0)
+		            {
+			            //fixed (void* iocc = &this.IOCP)
+			            {
+				            //res = glp_intopt(lp, iocc);
+				            res = glp_intopt(lp, null);
+			            }
+			            if (res == 0)
+				            return true;
+			            else
+				            return false;
+		            }
+		            else
+			            return false;
+	            }
+	            else
+	            {
 
-                if (res == 0)
+		            if (_max_iterations.HasValue)
+		            {
+			            glp_smcp[] options = new glp_smcp[1];
+			            fixed (glp_smcp* optionsPointer = options)
+			            {
+				            glp_init_smcp(optionsPointer);
+				            options[0].it_lim = _max_iterations.Value;
+							res = glp_simplex(lp, (double*) optionsPointer);
+			            }
+		            }
+		            else
+		            {
+			            res = glp_simplex(lp, null);
+		            }
+	            }
+
+	            if (res == 0)
                 {
                     return true;
                 }
@@ -716,5 +776,10 @@ namespace Optimization.Solver.GLPK
         {
             throw new NotImplementedException("Abort() not supported yet.");
         }
+
+	    public void SetMaxIterations(int max)
+	    {
+		    _max_iterations = max;
+	    }
     }
 }
